@@ -1,6 +1,6 @@
 import aiosqlite
 
-DATABASE_PATH = "retry_engine.db"
+from app.config import settings
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS requests (
@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_attempts_request_id ON attempts(request_id);
 
 
 async def get_db() -> aiosqlite.Connection:
-    db = await aiosqlite.connect(DATABASE_PATH)
+    db = await aiosqlite.connect(settings.database_path)
     db.row_factory = aiosqlite.Row
     await db.execute("PRAGMA journal_mode=WAL")
     await db.execute("PRAGMA foreign_keys=ON")

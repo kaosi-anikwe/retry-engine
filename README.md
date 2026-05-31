@@ -38,6 +38,20 @@ Then run the automated test script:
 uv run python test_retry.py
 ```
 
+### Configuration
+
+Settings are managed via environment variables or a `.env` file in the project root. Defaults work out of the box — no `.env` file is required.
+
+| Variable        | Default           | Description                      |
+| --------------- | ----------------- | -------------------------------- |
+| `DATABASE_PATH` | `retry_engine.db` | Path to the SQLite database file |
+
+Example `.env`:
+
+```env
+DATABASE_PATH=my_custom.db
+```
+
 ### curl Commands
 
 **Submit a request:**
