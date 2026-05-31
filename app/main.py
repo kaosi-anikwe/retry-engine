@@ -10,7 +10,13 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 
 from app.database import get_db, init_db
-from app.models import AttemptOut, RequestCreate, RequestOut, RequestResponse
+from app.models import (
+    AttemptOut,
+    RequestCreate,
+    RequestOut,
+    RequestResponse,
+    RequestStatus,
+)
 from app.worker import worker_loop
 
 logging.basicConfig(
@@ -56,7 +62,7 @@ async def create_request(payload: RequestCreate) -> RequestResponse:
     finally:
         await db.close()
 
-    return RequestResponse(id=request_id, status="pending")
+    return RequestResponse(id=request_id, status=RequestStatus.PENDING)
 
 
 @app.get("/requests/{request_id}")
@@ -113,7 +119,7 @@ async def get_request(request_id: str) -> RequestOut:
 
 @app.get("/requests")
 async def list_requests(
-    status: str | None = Query(default=None),
+    status: RequestStatus | None = Query(default=None),
 ) -> list[RequestOut]:
     db = await get_db()
     try:

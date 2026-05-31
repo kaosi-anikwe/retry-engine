@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS requests (
     body TEXT,
     max_retries INTEGER NOT NULL DEFAULT 5,
     backoff_ms INTEGER NOT NULL DEFAULT 1000,
-    status TEXT NOT NULL DEFAULT 'pending',
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'retrying', 'completed', 'failed')),
     attempt_count INTEGER NOT NULL DEFAULT 0,
     next_retry_at TEXT,
     last_error TEXT,

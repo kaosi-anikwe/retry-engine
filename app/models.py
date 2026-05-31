@@ -1,8 +1,16 @@
 from __future__ import annotations
 
 import json
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class RequestStatus(StrEnum):
+    PENDING = "pending"
+    RETRYING = "retrying"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class RequestCreate(BaseModel):
@@ -38,7 +46,7 @@ class RequestCreate(BaseModel):
 
 class RequestResponse(BaseModel):
     id: str
-    status: str
+    status: RequestStatus
 
 
 class AttemptOut(BaseModel):
@@ -57,7 +65,7 @@ class RequestOut(BaseModel):
     body: str | None = None
     max_retries: int
     backoff_ms: int
-    status: str
+    status: RequestStatus
     attempt_count: int
     next_retry_at: str | None = None
     last_error: str | None = None

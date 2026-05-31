@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 
 from app.database import get_db
+from app.models import RequestStatus
 
 logger = logging.getLogger("retry-engine.worker")
 
@@ -115,11 +116,11 @@ async def _process_request(request_id: str) -> None:
             # Success
             await db.execute(
                 """UPDATE requests
-                   SET status = 'completed', attempt_count = ?, result = ?,
+                   SET status = ?, attempt_count = ?, result = ?,
                        last_error = NULL, next_retry_at = NULL,
                        updated_at = datetime('now')
                    WHERE id = ?""",
-                (new_attempt, response_body, request_id),
+                (RequestStatus.COMPLETED, new_attempt, response_body, request_id),
             )
             logger.info("  → Request COMPLETED")
         elif not _is_retryable(status_code, error):
@@ -127,10 +128,10 @@ async def _process_request(request_id: str) -> None:
             err_msg = f"HTTP {status_code}: {response_body}"
             await db.execute(
                 """UPDATE requests
-                   SET status = 'failed', attempt_count = ?, last_error = ?,
+                   SET status = ?, attempt_count = ?, last_error = ?,
                        next_retry_at = NULL, updated_at = datetime('now')
                    WHERE id = ?""",
-                (new_attempt, err_msg, request_id),
+                (RequestStatus.FAILED, new_attempt, err_msg, request_id),
             )
             logger.info("  → Request FAILED (4xx, not retryable)")
         elif new_attempt >= max_retries:
@@ -138,10 +139,10 @@ async def _process_request(request_id: str) -> None:
             err_msg = error or f"HTTP {status_code}: {response_body}"
             await db.execute(
                 """UPDATE requests
-                   SET status = 'failed', attempt_count = ?, last_error = ?,
+                   SET status = ?, attempt_count = ?, last_error = ?,
                        next_retry_at = NULL, updated_at = datetime('now')
                    WHERE id = ?""",
-                (new_attempt, err_msg, request_id),
+                (RequestStatus.FAILED, new_attempt, err_msg, request_id),
             )
             logger.info("  → Request DEAD-LETTERED (max retries reached)")
         else:
@@ -150,10 +151,10 @@ async def _process_request(request_id: str) -> None:
             next_retry = _compute_next_retry_at(backoff_ms, new_attempt)
             await db.execute(
                 """UPDATE requests
-                   SET status = 'retrying', attempt_count = ?, last_error = ?,
+                   SET status = ?, attempt_count = ?, last_error = ?,
                        next_retry_at = ?, updated_at = datetime('now')
                    WHERE id = ?""",
-                (new_attempt, err_msg, next_retry, request_id),
+                (RequestStatus.RETRYING, new_attempt, err_msg, next_retry, request_id),
             )
 
         await db.commit()
@@ -172,10 +173,10 @@ async def worker_loop() -> None:
                 rows: list[Any] = list(
                     await db.execute_fetchall(
                         """SELECT id FROM requests
-                           WHERE status IN ('pending', 'retrying')
+                           WHERE status IN (?, ?)
                              AND (next_retry_at IS NULL OR next_retry_at <= ?)
                            ORDER BY next_retry_at ASC""",
-                        (now,),
+                        (RequestStatus.PENDING, RequestStatus.RETRYING, now),
                     )
                 )
             finally:
